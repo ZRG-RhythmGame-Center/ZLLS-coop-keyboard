@@ -503,14 +503,14 @@ receiver:
 
 ### Milestone 2：本地键盘模拟
 
-- [ ] 在 Receiver 端集成 `keyboard_events.inject`，将接收到的 key_down/key_up 事件映射为本地按键模拟。
-- [ ] 在同一台机器上自测（Controller 与 Receiver 分别为两个进程），验证基础流程。
+- [x] 在 Receiver 端集成 `keyboard_events.inject`，将接收到的 key_down/key_up 事件映射为本地按键模拟。
+- [x] 在同一台机器上自测（Controller 与 Receiver 分别为两个进程），验证基础流程。
 
 ### Milestone 3：映射与多目标
 
-- [ ] 实现 `mapping` 模块与配置。
-- [ ] 实现 `targets` 模块与配置（default + per-key）。
-- [ ] Controller 支持多台 Receiver，同一事件可发送到多台。
+- [ ] 实现 `mapping` 模块与配置。（首版约定仅实现 bindings，mapping 留作后续扩展。）
+- [x] 实现 `bindings` 模块（listen_keys、bindings、should_handle、get_actions）与 `targets` 模块（从 controller.peers 解析 target → address）。
+- [x] Controller 支持多台 Receiver，同一事件按 bindings 的 actions 可发送到多台；修饰键追踪并参与 bindings 匹配。
 
 ### Milestone 4：健壮性与体验
 

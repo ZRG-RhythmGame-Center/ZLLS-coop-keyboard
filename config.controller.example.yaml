@@ -4,6 +4,20 @@
 mode: controller
 
 controller:
+  listen_keys: ["KeyF1", "KeyF2", "a", "b"]
+  bindings:
+    KeyF1:
+      on: down
+      actions:
+        - target: default
+          key: KeyF1
+          event: down
+    a:
+      on: both
+      actions:
+        - target: default
+          key: b
+          event: both
   peers:
     default:
-      address: "/ip4/127.0.0.1/tcp/57149/p2p/12D3KooWQeizcVc6iJVKFay1wTfNCUTZfpKkMcwZXc4BT3bM8HLx"
+      address: "/ip4/127.0.0.1/tcp/56538/p2p/12D3KooWFgozVnipxbKjF8ho3CMpvoFwhiDyRq8egtNJY78uLY41"
