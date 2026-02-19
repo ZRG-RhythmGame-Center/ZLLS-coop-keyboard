@@ -2,5 +2,7 @@
 mode: receiver
 
 receiver:
+  identity:
+    id: receiver123   # 可选，不填则用本机 hostname；用于 zeroconf 发现与 bindings target
   keyboard:
     enable: true

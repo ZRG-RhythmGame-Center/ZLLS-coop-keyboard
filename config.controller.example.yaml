@@ -1,9 +1,12 @@
 # Controller 示例配置
-# 1. 先启动 receiver，将输出的 multiaddr 填到下面 peers.xxx.address
+# 1. 先启动 receiver，将输出的 multiaddr 填到下面 peers.xxx.address（或启用 discovery 自动发现）
 # 2. 复制本文件为 config.yaml 或使用 -c 指定
 mode: controller
 
 controller:
+  discovery:
+    enable: true     # 设为 true 时通过 zeroconf 发现局域网内 Receiver，可不写 peers
+    type: zeroconf
   listen_keys: ["KeyF1", "KeyF2", "a", "b"]
   bindings:
     KeyF1:
@@ -15,9 +18,21 @@ controller:
     a:
       on: both
       actions:
-        - target: default
+        - target: receiver123
           key: b
           event: both
-  peers:
-    default:
-      address: "/ip4/127.0.0.1/tcp/56538/p2p/12D3KooWFgozVnipxbKjF8ho3CMpvoFwhiDyRq8egtNJY78uLY41"
+        - target: receiver123
+          key: f
+          event: both
+    c:
+      on: both
+      actions:
+        - target: receiver123
+          key: d
+          event: both
+        - target: receiver123
+          key: e
+          event: both
+  # peers:
+  #   default:
+  #     address: "/ip4/127.0.0.1/tcp/56538/p2p/12D3KooWFgozVnipxbKjF8ho3CMpvoFwhiDyRq8egtNJY78uLY41"

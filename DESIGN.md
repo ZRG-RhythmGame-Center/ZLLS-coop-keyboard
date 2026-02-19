@@ -313,7 +313,7 @@ PyPI 包名 `zeroconf`）实现 mDNS 服务发现，这样多数情况下**不�
 
 ### 服务类型与约定
 
-- **服务类型**：`_zlls-coop-keyboard._tcp.local`（固定，便于 Controller 只发现本项目的 Receiver）。
+- **服务类型**：`_zlls-coop-keyboard._tcp.local`（固定，便于 Controller 只发现本项目的 Receiver）。实现中因 mDNS 首标签 ≤15 字节限制使用 `_zlls-coop-kb._tcp.local`。
 - **服务名（必须唯一）**：使用**机器标识**（hostname 或 `receiver.identity.id`）作为前缀，若在 LAN 内检测到冲突，则由 Receiver 在其基础上**追加唯一后缀**（例如 `-<port>` 或随机短串），最终保证服务名在同一 LAN 内全局唯一。
 - **端口**：与 py-libp2p Host 监听的 TCP 端口一致。
 - **TXT 记录**（可选但推荐）：存放 `multiaddr` 或 `peer_id`，便于 Controller 直接拼出完整 multiaddr（`/ip4/<解析到的 IP>/tcp/<port>/p2p/<peer_id>`），避免只依赖端口。
@@ -520,10 +520,10 @@ receiver:
 
 ### Milestone 5（可选）：局域网发现（zeroconf）
 
-- [ ] 增加依赖 **zeroconf**（PyPI: `zeroconf`）。
-- [ ] Receiver 端：Host 启动后使用 zeroconf 注册 mDNS 服务（类型 `_zlls-coop-keyboard._tcp.local`，服务名为机器标识，TXT 中带 multiaddr）；退出时反注册。
-- [ ] Controller 端：使用 zeroconf 的 ServiceBrowser 浏览上述服务类型，在回调中维护「机器标识 → multiaddr」发现表；`targets` 解析时优先 peers，再查发现表。
-- [ ] 配置项 `controller.discovery.enable`、`controller.discovery.type: "zeroconf"`；与 peers 并存时以 peers 为准。
+- [x] 增加依赖 **zeroconf**（PyPI: `zeroconf`）。
+- [x] Receiver 端：Host 启动后使用 zeroconf 注册 mDNS 服务（类型 `_zlls-coop-keyboard._tcp.local`，服务名为机器标识，TXT 中带 multiaddr）；退出时反注册。
+- [x] Controller 端：使用 zeroconf 的 ServiceBrowser 浏览上述服务类型，在回调中维护「机器标识 → multiaddr」发现表；`targets` 解析时优先 peers，再查发现表。
+- [x] 配置项 `controller.discovery.enable`、`controller.discovery.type: "zeroconf"`；与 peers 并存时以 peers 为准。
 
 ---
 
