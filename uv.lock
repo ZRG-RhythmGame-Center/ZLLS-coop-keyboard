@@ -1389,6 +1389,7 @@ dependencies = [
     { name = "libp2p" },
     { name = "pynput" },
     { name = "pyyaml" },
+    { name = "zeroconf" },
 ]
 
 [package.metadata]
@@ -1396,4 +1397,5 @@ requires-dist = [
     { name = "libp2p" },
     { name = "pynput", specifier = ">=1.7.6" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "zeroconf", specifier = ">=0.131.0" },
 ]

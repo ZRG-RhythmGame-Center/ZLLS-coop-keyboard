@@ -8,8 +8,8 @@ dependencies = [
     "libp2p",
     "pynput>=1.7.6",
     "PyYAML>=6.0",
+    "zeroconf>=0.131.0",
 ]
-# zeroconf: add when implementing Milestone 5 (LAN discovery)
 
 [project.scripts]
 zlls-coop-keyboard-receiver = "zlls_coop_keybord.receiver_main:main"
