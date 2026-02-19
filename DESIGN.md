@@ -490,16 +490,16 @@ receiver:
 
 ### Milestone 1：最小可用 Demo
 
-- [ ] 加入依赖（见技术栈）：`libp2p`、`pynput`、`PyYAML`。（zeroconf 在 Milestone 5 加入。）
-- [ ] 实现 Receiver 端：
-  - [ ] 启动 py-libp2p Host，输出 multiaddr。
-  - [ ] 注册协议 `/zlls-coop-keyboard/1.0.0` 的 stream handler。
-  - [ ] 将收到的简单 JSON 事件（含 key、event）打印到控制台。
-- [ ] 实现 Controller 端：
-  - [ ] 启动 py-libp2p Host。
-  - [ ] 通过配置里的 multiaddr 连接单个 Receiver。
-  - [ ] 监听键盘，将按键事件简单转成 JSON 并通过 stream 发到 Receiver。
-  - [ ] Receiver 控制台能实时打印事件。
+- [x] 加入依赖（见技术栈）：`libp2p`、`pynput`、`PyYAML`。（zeroconf 在 Milestone 5 加入。）
+- [x] 实现 Receiver 端：
+  - [x] 启动 py-libp2p Host，输出 multiaddr。
+  - [x] 注册协议 `/zlls-coop-keyboard/1.0.0` 的 stream handler。
+  - [x] 将收到的简单 JSON 事件（含 key、event）打印到控制台。
+- [x] 实现 Controller 端：
+  - [x] 启动 py-libp2p Host。
+  - [x] 通过配置里的 multiaddr 连接单个 Receiver。
+  - [x] 监听键盘，将按键事件简单转成 JSON 并通过 stream 发到 Receiver。
+  - [x] Receiver 控制台能实时打印事件。
 
 ### Milestone 2：本地键盘模拟
 
