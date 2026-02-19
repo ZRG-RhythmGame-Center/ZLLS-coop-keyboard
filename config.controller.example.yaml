@@ -1,0 +1,9 @@
+# Controller 示例配置
+# 1. 先启动 receiver，将输出的 multiaddr 填到下面 peers.xxx.address
+# 2. 复制本文件为 config.yaml 或使用 -c 指定
+mode: controller
+
+controller:
+  peers:
+    default:
+      address: "/ip4/127.0.0.1/tcp/57149/p2p/12D3KooWQeizcVc6iJVKFay1wTfNCUTZfpKkMcwZXc4BT3bM8HLx"

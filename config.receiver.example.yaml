@@ -1,0 +1,6 @@
+# Receiver 示例配置（复制为 config.yaml 后启动 receiver）
+mode: receiver
+
+receiver:
+  keyboard:
+    enable: true
