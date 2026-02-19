@@ -1,4 +1,4 @@
-"""Controller 端入口：启动 Host，连接配置中的 Receiver，将本地按键转为 JSON 发送。"""
+"""Controller 端入口：启动 Host，按 bindings 将本地按键转发到多台 Receiver。"""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import sys
 
 import trio
 
+from .bindings import Bindings
 from .config import load, DEFAULT_CONFIG_PATH
 from .keyboard_events import raw_to_key_event, start_capture
 from .p2p import (
@@ -17,22 +18,14 @@ from .p2p import (
     create_host,
     get_first_listen_addr,
 )
+from .protocol import KeyEvent
+from .targets import resolve as resolve_target
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-
-def _first_peer_address(config: dict) -> str | None:
-    """从 controller.peers 中取第一个 peer 的 address。"""
-    controller = config.get("controller") or {}
-    peers = controller.get("peers") or {}
-    for v in peers.values():
-        if isinstance(v, dict) and v.get("address"):
-            return v["address"]
-    return None
 
 
 def _parse_args():
@@ -68,25 +61,37 @@ async def _async_main() -> None:
         logger.error("Config mode must be 'controller'")
         sys.exit(1)
 
-    peer_addr = _first_peer_address(config)
-    if not peer_addr:
-        logger.error("controller.peers must contain at least one peer with 'address'")
-        sys.exit(1)
-
+    bindings = Bindings(config)
     event_queue: queue.Queue = queue.Queue()
     start_capture(event_queue)
     host = create_host()
 
     async with host.run([create_listen_addr(args.port)]):
         logger.info("Controller listening on %s", get_first_listen_addr(host))
-        logger.info("Sending key events to %s", peer_addr)
         while True:
             raw = await trio.to_thread.run_sync(event_queue.get)
-            ev = raw_to_key_event(raw)
-            try:
-                await connect_and_send_key_event(host, peer_addr, ev)
-            except Exception as e:
-                logger.warning("Send failed: %s", e)
+            key_str = raw_to_key_event(raw).key
+            if not bindings.should_handle(key_str, raw.modifiers):
+                continue
+            actions = bindings.get_actions(key_str, raw.modifiers, raw.event_type)
+            if not actions:
+                continue
+            send_list: list[tuple[str, KeyEvent]] = []
+            for a in actions:
+                addr = resolve_target(config, a.target)
+                if not addr:
+                    logger.warning("target %r not resolved, skip action key=%s", a.target, a.key)
+                    continue
+                if a.event == "both":
+                    send_list.append((addr, KeyEvent(event="down", key=a.key, modifiers=None)))
+                    send_list.append((addr, KeyEvent(event="up", key=a.key, modifiers=None)))
+                else:
+                    send_list.append((addr, KeyEvent(event=a.event, key=a.key, modifiers=None)))
+            for addr, ev in send_list:
+                try:
+                    await connect_and_send_key_event(host, addr, ev)
+                except Exception as e:
+                    logger.warning("Send to %s failed: %s", addr[:50], e)
 
 
 def main() -> None:
