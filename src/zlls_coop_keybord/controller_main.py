@@ -43,6 +43,11 @@ def _parse_args():
         default=0,
         help="Listen port (0 = random)",
     )
+    p.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="打印详细日志（DEBUG）便于排查发送卡住等问题",
+    )
     return p.parse_args()
 
 
@@ -62,6 +67,10 @@ async def _async_main() -> None:
         logger.error("Config mode must be 'controller'")
         sys.exit(1)
 
+    if args.verbose:
+        logging.getLogger("zlls_coop_keybord").setLevel(logging.DEBUG)
+        logger.debug("verbose: 已开启 DEBUG 日志")
+
     bindings = Bindings(config)
     discovery: DiscoveryTable | None = None
     discovery_cfg = (config.get("controller") or {}).get("discovery") or {}
@@ -72,16 +81,22 @@ async def _async_main() -> None:
     event_queue: queue.Queue = queue.Queue()
     start_capture(event_queue)
     host = create_host()
+    # 按 peer 复用 stream，避免每次按键都 new_stream 导致卡住
+    stream_cache: dict = {}
 
     async with host.run([create_listen_addr(args.port)]):
         logger.info("Controller listening on %s", get_first_listen_addr(host))
         while True:
+            logger.debug("主循环: 等待键盘事件 event_queue.get() ...")
             raw = await trio.to_thread.run_sync(event_queue.get)
             key_str = raw_to_key_event(raw).key
+            logger.debug("主循环: 收到 raw event_type=%s key_str=%s modifiers=%s", raw.event_type, key_str, raw.modifiers)
             if not bindings.should_handle(key_str, raw.modifiers):
+                logger.debug("主循环: should_handle=False 跳过 key_str=%s", key_str)
                 continue
             actions = bindings.get_actions(key_str, raw.modifiers, raw.event_type)
             if not actions:
+                logger.debug("主循环: get_actions 为空 跳过 key_str=%s event_type=%s", key_str, raw.event_type)
                 continue
             send_list: list[tuple[str, KeyEvent]] = []
             for a in actions:
@@ -94,9 +109,12 @@ async def _async_main() -> None:
                     send_list.append((addr, KeyEvent(event="up", key=a.key, modifiers=None)))
                 else:
                     send_list.append((addr, KeyEvent(event=a.event, key=a.key, modifiers=None)))
-            for addr, ev in send_list:
+            logger.debug("主循环: 待发送 %d 条 -> %s", len(send_list), [ev.event + " " + ev.key for _, ev in send_list])
+            for i, (addr, ev) in enumerate(send_list):
                 try:
-                    await connect_and_send_key_event(host, addr, ev)
+                    logger.debug("主循环: 发送 [%d/%d] %s %s -> %s", i + 1, len(send_list), ev.event, ev.key, addr[:60])
+                    await connect_and_send_key_event(host, addr, ev, stream_cache=stream_cache)
+                    logger.debug("主循环: 发送 [%d/%d] 完成", i + 1, len(send_list))
                 except Exception as e:
                     logger.warning("Send to %s failed: %s", addr[:50], e)
 

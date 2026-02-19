@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 import multiaddr
+import trio
 
 import libp2p
 from libp2p.custom_types import TProtocol
@@ -79,17 +80,56 @@ async def read_json_lines(stream: "INetStream") -> AsyncIterator[bytes]:
         pass
 
 
+async def _write_key_event_to_stream(stream: "INetStream", key_event: KeyEvent) -> None:
+    """向已打开的 stream 写一条 JSON 行（不关闭 stream）。"""
+    line = key_event.to_json_line()
+    await stream.write(line)
+
+
 async def connect_and_send_key_event(
     host,
     multiaddr_str: str,
     key_event: KeyEvent,
+    stream_cache: dict[str, Any] | None = None,
 ) -> None:
-    """连接指定 multiaddr，打开协议流，发送一条按键事件 JSON 行。"""
+    """连接指定 multiaddr，发送一条按键事件。若提供 stream_cache 则按 peer 复用 stream，避免频繁 new_stream 导致卡住。"""
     peer_info = peer_info_from_multiaddr_str(multiaddr_str)
+    peer_id_str = str(peer_info.peer_id)
+    logger.debug("p2p: connect_and_send 开始 peer_id=%s event=%s key=%s", peer_id_str[:20], key_event.event, key_event.key)
+
+    if stream_cache is not None:
+        if peer_id_str not in stream_cache:
+            stream_cache[peer_id_str] = {"lock": trio.Lock(), "stream": None}
+        entry = stream_cache[peer_id_str]
+        async with entry["lock"]:
+            stream = entry["stream"]
+            if stream is not None:
+                try:
+                    await _write_key_event_to_stream(stream, key_event)
+                    logger.debug("p2p: 复用 stream 写入完成")
+                    return
+                except Exception as e:
+                    logger.debug("p2p: 复用 stream 写入失败，将重建: %s", e)
+                    entry["stream"] = None
+            logger.debug("p2p: host.connect peer_id=%s ...", peer_id_str[:20])
+            await host.connect(peer_info)
+            logger.debug("p2p: host.connect 完成，new_stream ...")
+            stream = await host.new_stream(peer_info.peer_id, [PROTOCOL_ID])
+            logger.debug("p2p: new_stream 完成，写入并缓存")
+            entry["stream"] = stream
+            await _write_key_event_to_stream(stream, key_event)
+        logger.debug("p2p: connect_and_send 结束（已缓存 stream）")
+        return
+
+    # 无 cache：每次新建 stream 并关闭（旧行为，易在多次按键后卡在 new_stream）
+    logger.debug("p2p: host.connect peer_id=%s ...", peer_id_str[:20])
     await host.connect(peer_info)
+    logger.debug("p2p: host.connect 完成，new_stream ...")
     stream = await host.new_stream(peer_info.peer_id, [PROTOCOL_ID])
+    logger.debug("p2p: new_stream 完成，write ...")
     try:
-        line = key_event.to_json_line()
-        await stream.write(line)
+        await _write_key_event_to_stream(stream, key_event)
+        logger.debug("p2p: write 完成，close_write ...")
     finally:
         await stream.close_write()
+        logger.debug("p2p: connect_and_send 结束")
