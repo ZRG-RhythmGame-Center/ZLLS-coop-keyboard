@@ -1,0 +1,23 @@
+[project]
+name = "zlls-coop-keybord"
+version = "0.1.0"
+description = "One keyboard controls multiple machines (P2P + configurable bindings)."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "libp2p",
+    "pynput>=1.7.6",
+    "PyYAML>=6.0",
+]
+# zeroconf: add when implementing Milestone 5 (LAN discovery)
+
+[project.scripts]
+zlls-coop-keyboard-receiver = "zlls_coop_keybord.receiver_main:main"
+zlls-coop-keyboard-controller = "zlls_coop_keybord.controller_main:main"
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
