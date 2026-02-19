@@ -7,7 +7,7 @@ controller:
   discovery:
     enable: true     # 设为 true 时通过 zeroconf 发现局域网内 Receiver，可不写 peers
     type: zeroconf
-  listen_keys: ["KeyF1", "KeyF2", "a", "b"]
+  listen_keys: ["a", "b", "c", "d", "e", "f"]
   bindings:
     KeyF1:
       on: down
@@ -18,19 +18,19 @@ controller:
     a:
       on: both
       actions:
-        - target: receiver123
+        - target: receiver12321
           key: b
           event: both
-        - target: receiver123
+        - target: receiver12321
           key: f
           event: both
     c:
       on: both
       actions:
-        - target: receiver123
+        - target: receiver12321
           key: d
           event: both
-        - target: receiver123
+        - target: receiver12321
           key: e
           event: both
   # peers:
