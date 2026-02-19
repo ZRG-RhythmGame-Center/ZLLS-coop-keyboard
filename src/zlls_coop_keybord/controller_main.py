@@ -11,6 +11,7 @@ import trio
 
 from .bindings import Bindings
 from .config import load, DEFAULT_CONFIG_PATH
+from .discovery import DiscoveryTable
 from .keyboard_events import raw_to_key_event, start_capture
 from .p2p import (
     connect_and_send_key_event,
@@ -62,6 +63,12 @@ async def _async_main() -> None:
         sys.exit(1)
 
     bindings = Bindings(config)
+    discovery: DiscoveryTable | None = None
+    discovery_cfg = (config.get("controller") or {}).get("discovery") or {}
+    if discovery_cfg.get("enable") and discovery_cfg.get("type") == "zeroconf":
+        discovery = DiscoveryTable()
+        discovery.start_browser()
+
     event_queue: queue.Queue = queue.Queue()
     start_capture(event_queue)
     host = create_host()
@@ -78,7 +85,7 @@ async def _async_main() -> None:
                 continue
             send_list: list[tuple[str, KeyEvent]] = []
             for a in actions:
-                addr = resolve_target(config, a.target)
+                addr = resolve_target(config, a.target, discovery_table=discovery)
                 if not addr:
                     logger.warning("target %r not resolved, skip action key=%s", a.target, a.key)
                     continue

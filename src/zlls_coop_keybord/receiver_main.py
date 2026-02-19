@@ -1,14 +1,16 @@
-"""Receiver 端入口：启动 Host，注册协议，将收到的按键事件 JSON 打印到控制台。"""
+"""Receiver 端入口：启动 Host，注册协议，将收到的按键事件 JSON 打印到控制台；可选 zeroconf 注册。"""
 
 from __future__ import annotations
 
 import argparse
 import logging
+import socket
 import sys
 
 import trio
 
 from .config import load, DEFAULT_CONFIG_PATH
+from .discovery import register_receiver, unregister_receiver
 from .keyboard_events import inject
 from .p2p import (
     create_listen_addr,
@@ -85,14 +87,22 @@ async def _async_main() -> None:
         sys.exit(1)
 
     keyboard_enabled = ((config.get("receiver") or {}).get("keyboard") or {}).get("enable", False)
+    identity_id = (
+        (config.get("receiver") or {}).get("identity") or {}
+    ).get("id") or socket.gethostname()
     host = create_host()
     register_keyboard_handler(host, _make_stream_handler(keyboard_enabled))
 
-    async with host.run([create_listen_addr(args.port)]):
-        addr = get_first_listen_addr(host)
-        print(f"Receiver running. Connect Controller to: {addr}", flush=True)
-        print("Waiting for key events...", flush=True)
-        await trio.sleep_forever()
+    zc, service_info = None, None
+    try:
+        async with host.run([create_listen_addr(args.port)]):
+            addr = get_first_listen_addr(host)
+            print(f"Receiver running (id={identity_id!r}). Connect Controller to: {addr}", flush=True)
+            zc, service_info = register_receiver(identity_id, addr)
+            print("Waiting for key events...", flush=True)
+            await trio.sleep_forever()
+    finally:
+        unregister_receiver(zc, service_info)
 
 
 def main() -> None:
