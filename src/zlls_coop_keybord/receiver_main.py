@@ -9,6 +9,7 @@ import sys
 import trio
 
 from .config import load, DEFAULT_CONFIG_PATH
+from .keyboard_events import inject
 from .p2p import (
     create_listen_addr,
     create_host,
@@ -25,22 +26,29 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def _keyboard_stream_handler(stream) -> None:
-    """协议 handler：按行读 JSON，解析为 KeyEvent 并打印。"""
-    try:
-        async for line in read_json_lines(stream):
-            ev = KeyEvent.from_json_line(line)
-            if ev:
-                print(f"[key_event] {ev.event} key={ev.key} modifiers={ev.modifiers}")
-            else:
-                logger.debug("ignored line: %s", line[:80])
-    except Exception as e:
-        logger.exception("stream handler error: %s", e)
-    finally:
+def _make_stream_handler(keyboard_enabled: bool):
+    """根据配置返回 stream handler：keyboard_enabled 时注入按键，否则仅打印。"""
+
+    async def _keyboard_stream_handler(stream) -> None:
         try:
-            await stream.close_read()
-        except Exception:
-            pass
+            async for line in read_json_lines(stream):
+                ev = KeyEvent.from_json_line(line)
+                if ev:
+                    if keyboard_enabled:
+                        inject(ev)
+                    else:
+                        print(f"[key_event] {ev.event} key={ev.key} modifiers={ev.modifiers}")
+                else:
+                    logger.debug("ignored line: %s", line[:80])
+        except Exception as e:
+            logger.exception("stream handler error: %s", e)
+        finally:
+            try:
+                await stream.close_read()
+            except Exception:
+                pass
+
+    return _keyboard_stream_handler
 
 
 def _parse_args():
@@ -76,8 +84,9 @@ async def _async_main() -> None:
         logger.error("Config mode must be 'receiver'")
         sys.exit(1)
 
+    keyboard_enabled = ((config.get("receiver") or {}).get("keyboard") or {}).get("enable", False)
     host = create_host()
-    register_keyboard_handler(host, _keyboard_stream_handler)
+    register_keyboard_handler(host, _make_stream_handler(keyboard_enabled))
 
     async with host.run([create_listen_addr(args.port)]):
         addr = get_first_listen_addr(host)
