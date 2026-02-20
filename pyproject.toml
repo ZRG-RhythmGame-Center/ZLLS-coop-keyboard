@@ -14,6 +14,7 @@ dependencies = [
 [project.scripts]
 zlls-coop-keyboard-receiver = "zlls_coop_keybord.receiver_main:main"
 zlls-coop-keyboard-controller = "zlls_coop_keybord.controller_main:main"
+zlls-coop-keyboard-listener = "zlls_coop_keybord.keyboard_listener_tool:main"
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]
