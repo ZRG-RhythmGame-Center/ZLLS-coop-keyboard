@@ -9,12 +9,6 @@ controller:
     type: zeroconf
   listen_keys: ["a", "b", "c", "d", "e", "f"]
   bindings:
-    KeyF1:
-      on: down
-      actions:
-        - target: default
-          key: KeyF1
-          event: down
     a:
       on: both
       actions:
