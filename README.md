@@ -75,6 +75,39 @@ controller:
 
 示例配置见 `config.receiver.example.yaml`、`config.controller.example.yaml`。
 
+## 开机自启（Windows）
+
+在 Windows 上可让 Controller 或 Receiver 在登录后自动启动，两种常用方式如下。
+
+### 方式一：启动文件夹（推荐，操作简单）
+
+1. **选脚本**（任选其一）  
+   - 需要看到控制台窗口（方便看日志）：用 `scripts\start-controller.bat` 或 `scripts\start-receiver.bat`  
+   - 不需要窗口（静默在后台跑）：用 `scripts\start-controller-silent.vbs` 或 `scripts\start-receiver-silent.vbs`
+
+2. **创建快捷方式**  
+   右键对应脚本 → “创建快捷方式”。
+
+3. **放进启动文件夹**  
+   - `Win + R` → 输入 `shell:startup` → 回车  
+   - 把快捷方式复制（或移动）到这个文件夹里。
+
+下次登录后，程序会自动运行。工作目录为项目根目录，会读取项目下的 `config.yaml`（或你通过参数 `-c` 指定的配置）。
+
+### 方式二：任务计划程序（可精确控制触发时机）
+
+1. **Win + R** → 输入 `taskschd.msc` → 回车，打开“任务计划程序”。
+2. 右侧 **“创建基本任务”**：
+   - 名称：如 `zlls-coop-keyboard-controller`
+   - 触发器：**“当用户登录时”**
+   - 操作：**“启动程序”**
+   - 程序/脚本：填 **`uv`** 的完整路径（如 `C:\Users\你的用户名\.local\bin\uv.exe`，或用 `where uv` 在终端查）。
+   - 添加参数：`run zlls-coop-keyboard-controller`（Receiver 则改为 `run zlls-coop-keyboard-receiver`）。
+   - 起始于：项目根目录（如 `K:\UserFiles\Development\Projects\ZRC\zlls-coop-keybord`）。
+3. 完成创建后，可在该任务属性里勾选“不管用户是否登录都要运行”等（按需）。
+
+**注意**：开机自启前请在本机先配好 `config.yaml`（Controller 与 Receiver 各自对应 `config.controller.example.yaml` / `config.receiver.example.yaml` 的复制与修改），并确保 `uv` 在系统 PATH 中。
+
 ## 设计文档
 
 详见 [DESIGN.md](DESIGN.md)。
