@@ -65,11 +65,13 @@ def _parse_trigger(trigger_str: str) -> tuple[frozenset[str], str]:
 
 @dataclass
 class Action:
-    """单条操作：向某 target 发送 key 的 event。"""
+    """单条操作：根据 type 触发不同类型的行为。"""
 
-    target: str
-    key: str
-    event: str  # "down" | "up" | "both"
+    type: str  # "send_key" | "run_command" | "http_request"
+    target: str | None
+    key: str | None
+    event: str | None  # "down" | "up" | "both"，仅 send_key 使用
+    payload: dict[str, Any]
 
 
 class Bindings:
@@ -94,12 +96,75 @@ class Bindings:
                 on = "down"
             actions: list[Action] = []
             for a in binding.get("actions") or []:
-                if isinstance(a, dict) and a.get("target") and a.get("key"):
-                    actions.append(Action(
-                        target=str(a["target"]),
-                        key=str(a["key"]),
-                        event=(a.get("event") or "down").lower() or "down",
-                    ))
+                if not isinstance(a, dict):
+                    continue
+                # 默认类型：send_key，兼容旧配置
+                a_type = (a.get("type") or "send_key").lower()
+                if a_type == "send_key":
+                    if not a.get("target") or not a.get("key"):
+                        continue
+                    actions.append(
+                        Action(
+                            type="send_key",
+                            target=str(a["target"]),
+                            key=str(a["key"]),
+                            event=(a.get("event") or "down").lower() or "down",
+                            payload={},
+                        )
+                    )
+                    continue
+
+                if a_type == "run_command":
+                    command = a.get("command")
+                    if not command:
+                        continue
+                    where = (a.get("where") or "local").lower()
+                    payload = {
+                        "where": where,
+                        "command": str(command),
+                        "args": list(a.get("args") or []),
+                        "cwd": a.get("cwd"),
+                        "shell": bool(a.get("shell", False)),
+                    }
+                    actions.append(
+                        Action(
+                            type="run_command",
+                            target=str(a["target"]) if a.get("target") else None,
+                            key=None,
+                            event=None,
+                            payload=payload,
+                        )
+                    )
+                    continue
+
+                if a_type == "http_request":
+                    method = (a.get("method") or "GET").upper()
+                    url = a.get("url")
+                    if not url:
+                        continue
+                    where = (a.get("where") or "local").lower()
+                    headers = a.get("headers") or {}
+                    body = a.get("body")
+                    if headers is not None and not isinstance(headers, dict):
+                        headers = {}
+                    payload = {
+                        "where": where,
+                        "method": method,
+                        "url": str(url),
+                        "headers": headers,
+                        "body": body,
+                    }
+                    actions.append(
+                        Action(
+                            type="http_request",
+                            target=str(a["target"]) if a.get("target") else None,
+                            key=None,
+                            event=None,
+                            payload=payload,
+                        )
+                    )
+                    continue
+
             if actions:
                 self._by_trigger[(mods, base)] = (on, actions)
         logger.debug("bindings loaded: listen_keys=%s, triggers=%s", self._listen_keys, list(self._by_trigger.keys()))

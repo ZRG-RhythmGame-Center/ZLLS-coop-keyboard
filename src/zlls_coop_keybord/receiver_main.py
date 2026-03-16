@@ -19,7 +19,7 @@ from .p2p import (
     register_keyboard_handler,
     read_json_lines,
 )
-from .protocol import KeyEvent
+from .protocol import ActionEvent, KeyEvent
 
 logging.basicConfig(
     level=logging.INFO,
@@ -40,8 +40,12 @@ def _make_stream_handler(keyboard_enabled: bool):
                         inject(ev)
                     else:
                         print(f"[key_event] {ev.event} key={ev.key} modifiers={ev.modifiers}")
-                else:
-                    logger.debug("ignored line: %s", line[:80])
+                    continue
+                act = ActionEvent.from_json_line(line)
+                if act:
+                    await _handle_action_event(act)
+                    continue
+                logger.debug("ignored line: %s", line[:80])
         except Exception as e:
             logger.exception("stream handler error: %s", e)
         finally:
@@ -51,6 +55,70 @@ def _make_stream_handler(keyboard_enabled: bool):
                 pass
 
     return _keyboard_stream_handler
+
+
+async def _handle_action_event(act: ActionEvent) -> None:
+    """根据 ActionEvent 执行 run_command / http_request。"""
+    kind = (act.kind or "").lower()
+    payload = act.payload or {}
+    if kind == "run_command":
+        import subprocess
+        command = payload.get("command")
+        if not command:
+            logger.warning("ActionEvent run_command 缺少 command，忽略")
+            return
+        args = payload.get("args") or []
+        cwd = payload.get("cwd") or None
+        shell = bool(payload.get("shell", False))
+        try:
+            cmd_list = [command] + list(args)
+            logger.info("ActionEvent run_command: %s (cwd=%r shell=%s)", cmd_list, cwd, shell)
+            # 在后台启动进程，不等待完成
+            subprocess.Popen(
+                cmd_list if not shell else " ".join(cmd_list),
+                cwd=cwd,
+                shell=shell,
+            )
+        except Exception as e:
+            logger.warning("ActionEvent run_command 执行失败: %s", e)
+        return
+
+    if kind == "http_request":
+        try:
+            import httpx
+        except ImportError:
+            logger.warning("ActionEvent http_request: httpx 未安装，忽略该动作")
+            return
+        method = (payload.get("method") or "GET").upper()
+        url = payload.get("url")
+        if not url:
+            logger.warning("ActionEvent http_request 缺少 url，忽略")
+            return
+        headers = payload.get("headers") or None
+        body = payload.get("body", None)
+
+        async def _do_request() -> None:
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    resp = await client.request(
+                        method=method,
+                        url=url,
+                        headers=headers,
+                        content=body if body is not None else None,
+                    )
+                if 200 <= resp.status_code < 300:
+                    logger.info("ActionEvent http_request %s %s -> %s", method, url, resp.status_code)
+                else:
+                    logger.warning(
+                        "ActionEvent http_request 非 2xx: %s %s -> %s",
+                        method,
+                        url,
+                        resp.status_code,
+                    )
+            except Exception as e:
+                logger.warning("ActionEvent http_request 请求失败 %s %s: %s", method, url, e)
+
+        await _do_request()
 
 
 def _parse_args():

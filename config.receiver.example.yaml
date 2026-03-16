@@ -1,8 +1,13 @@
 # Receiver 示例配置（复制为 config.yaml 后启动 receiver）
+# 用法：
+# 1. 在需要被控制的机器上复制本文件为 config.yaml；
+# 2. 修改 receiver.identity.id 为一个在局域网内唯一的名字（例如 pc1）；
+# 3. 启动 receiver，它会用 zeroconf 注册自己；
+# 4. 在 controller 的 bindings 里用同样的 id 作为 target（例如 target: pc1）。
 mode: receiver
 
 receiver:
   identity:
-    id: receiver123   # 可选，不填则用本机 hostname；用于 zeroconf 发现与 bindings target
+    id: pc1           # 用作 target 名称与 zeroconf 服务名（可改成你自己的，比如 work-pc）
   keyboard:
-    enable: true
+    enable: true      # 为 true 时，收到的按键事件会直接注入本机键盘

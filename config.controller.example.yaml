@@ -1,32 +1,53 @@
 # Controller 示例配置
-# 1. 先启动 receiver，将输出的 multiaddr 填到下面 peers.xxx.address（或启用 discovery 自动发现）
-# 2. 复制本文件为 config.yaml 或使用 -c 指定
+# 用法：
+# 1. 在 Receiver 机器上复制 config.receiver.example.yaml 为 config.yaml，修改 receiver.identity.id，例如 pc1；
+# 2. 启动 receiver，它会通过 zeroconf 注册自己；
+# 3. 在 Controller 机器上复制本文件为 config.yaml，按需修改键位、命令、HTTP 地址；
+# 4. 启动 controller，按下对应按键即可触发本地/远端操作。
 mode: controller
 
 controller:
+  # 启用 zeroconf 发现 Receiver（推荐），这样就不需要写死 peers 地址了
   discovery:
-    enable: true     # 设为 true 时通过 zeroconf 发现局域网内 Receiver，可不写 peers
+    enable: true     # 设为 true 时通过 zeroconf 发现局域网内 Receiver
     type: zeroconf
-  listen_keys: ["a", "b", "c", "d", "e", "f"]
+
+  # 监听哪些键参与绑定（示例：F13）
+  listen_keys:
+    - f13
+
+  # 按键绑定：按下 F13 时触发多种动作
   bindings:
-    a:
-      on: both
+    "F13":
+      on: down
       actions:
-        - target: receiver12321
-          key: b
+        # 1) 向某个 Receiver 发送一个按键（兼容旧行为）
+        # target 使用 Receiver 侧的 receiver.identity.id，例如 pc1
+        - type: send_key
+          target: pc1
+          key: KeyF5
           event: both
-        - target: receiver12321
-          key: f
-          event: both
-    c:
-      on: both
-      actions:
-        - target: receiver12321
-          key: d
-          event: both
-        - target: receiver12321
-          key: e
-          event: both
-  # peers:
-  #   default:
-  #     address: "/ip4/127.0.0.1/tcp/56538/p2p/12D3KooWFgozVnipxbKjF8ho3CMpvoFwhiDyRq8egtNJY78uLY41"
+
+        # 2) 在 Controller 本机启动一个程序（请按需修改路径）
+        - type: run_command
+          where: local
+          command: "notepad.exe"
+          args: []
+          shell: false
+
+        # 3) 在 Controller 本机发送一个 HTTP 请求（需要本机有对应服务）
+        - type: http_request
+          where: local
+          method: POST
+          url: "http://127.0.0.1:8080/api/do_something"
+          headers:
+            X-From: "zlls-coop-keybord"
+          body: '{"foo": "bar"}'
+
+        # 4) 在远端 Receiver（pc1）上执行命令（使用 zeroconf 解析 pc1）
+        - type: run_command
+          where: target
+          target: pc1
+          command: "/usr/bin/echo"
+          args: ["hello-from-controller"]
+          shell: false

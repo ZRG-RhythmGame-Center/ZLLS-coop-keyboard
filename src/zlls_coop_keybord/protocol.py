@@ -40,3 +40,34 @@ class KeyEvent:
         except Exception as e:
             logger.debug("parse key_event failed: %s", e)
             return None
+
+
+@dataclass
+class ActionEvent:
+    """通用动作事件：run_command / http_request 等。"""
+
+    kind: str  # "run_command" | "http_request"
+    payload: dict[str, Any]
+    type: str = "action_event"
+
+    def to_json_line(self) -> bytes:
+        d = asdict(self)
+        return (json.dumps(d, ensure_ascii=False) + "\n").encode("utf-8")
+
+    @classmethod
+    def from_json_line(cls, line: bytes) -> ActionEvent | None:
+        try:
+            d = json.loads(line.decode("utf-8").strip())
+            if d.get("type") != "action_event":
+                return None
+            payload = d.get("payload") or {}
+            if not isinstance(payload, dict):
+                payload = {}
+            return cls(
+                kind=str(d.get("kind") or ""),
+                payload=payload,
+                type=d.get("type", "action_event"),
+            )
+        except Exception as e:
+            logger.debug("parse action_event failed: %s", e)
+            return None
