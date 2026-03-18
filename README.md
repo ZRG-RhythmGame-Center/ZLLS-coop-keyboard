@@ -67,6 +67,106 @@ controller:
           event: both
 ```
 
+## 模块结构图
+
+```text
+zlls-coop-keybord
+├─ CLI / 启动入口
+│  ├─ controller_main.py
+│  │  └─ Controller 端主程序
+│  │     - 读取配置
+│  │     - 启动本地键盘监听
+│  │     - 按 bindings 执行动作
+│  │     - 发送按键、命令或 HTTP 请求
+│  ├─ receiver_main.py
+│  │  └─ Receiver 端主程序
+│  │     - 读取配置
+│  │     - 启动 P2P 服务
+│  │     - 接收 KeyEvent / ActionEvent
+│  │     - 注入键盘或执行动作
+│  └─ keyboard_listener_tool.py
+│     └─ 独立键盘监听调试工具
+│
+├─ 核心业务模块
+│  ├─ bindings.py
+│  │  └─ 按键绑定规则引擎
+│  │     - listen_keys
+│  │     - 组合键匹配（如 Ctrl+KeyA）
+│  │     - 生成 send_key / run_command / http_request 动作
+│  ├─ keyboard_events.py
+│  │  └─ 键盘事件处理
+│  │     - 采集本地按键
+│  │     - 规范化键名
+│  │     - Receiver 端注入按键
+│  ├─ protocol.py
+│  │  └─ 网络消息模型
+│  │     - KeyEvent
+│  │     - ActionEvent
+│  │     - JSON line 编码/解码
+│  ├─ p2p.py
+│  │  └─ P2P 通信封装
+│  │     - 创建 host
+│  │     - 建立连接 / stream
+│  │     - 发送 key_event / action_event
+│  │     - 注册 Receiver 处理器
+│  ├─ targets.py
+│  │  └─ 目标机器解析
+│  │     - 根据 target 名称查地址
+│  │     - 优先 peers
+│  │     - 补充 discovery 结果
+│  ├─ discovery.py
+│  │  └─ 局域网发现
+│  │     - Receiver 注册 zeroconf 服务
+│  │     - Controller 浏览并维护发现表
+│  └─ config.py
+│     └─ 配置加载与校验
+│        - 读取 config.yaml
+│        - 判断 controller / receiver 模式
+│
+├─ 配置与文档
+│  ├─ config.controller.example.yaml
+│  ├─ config.receiver.example.yaml
+│  ├─ README.md
+│  └─ DESIGN.md
+│
+└─ 辅助脚本
+   └─ scripts/
+      - Windows 启动脚本
+      - 静默启动脚本
+```
+
+### 运行关系图
+
+```text
+[你的键盘]
+    │
+    ▼
+Controller (controller_main.py)
+    │
+    ├─ keyboard_events.py   采集按键
+    ├─ bindings.py          判断该按键要触发什么动作
+    ├─ targets.py           把 target 名称解析成地址
+    ├─ discovery.py         自动发现局域网 Receiver
+    └─ p2p.py               发送消息
+            │
+            ▼
+      protocol.py
+   (KeyEvent / ActionEvent)
+            │
+            ▼
+Receiver (receiver_main.py)
+    │
+    ├─ 收到 KeyEvent     → keyboard_events.py 注入本机键盘
+    ├─ 收到 run_command  → 本机执行命令
+    └─ 收到 http_request → 本机发送 HTTP 请求
+```
+
+### 当前代码已支持的动作类型
+
+- `send_key`：向指定 Receiver 发送按键事件。
+- `run_command`：在 Controller 本机执行命令，或发到目标 Receiver 远端执行。
+- `http_request`：在 Controller 本机发 HTTP 请求，或发到目标 Receiver 远端请求。
+
 ## 配置与命令行
 
 - **默认配置**：当前目录 `config.yaml`；可用 `-c/--config` 指定文件。
